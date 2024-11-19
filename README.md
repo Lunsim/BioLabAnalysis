@@ -1,5 +1,5 @@
 BioAnalysis
 
 Yunhan Liu
-Shuyun Qiu
+Yunshu Qiu
 Ruiyang Wang
