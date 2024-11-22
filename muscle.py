@@ -2,6 +2,10 @@ from fastapi import FastAPI
 
 app = FastAPI()
 
+##Section 1:
+##
+##
+##
 @app.post("/muscle", response_model=xxx)
 def im_adjust(I, thres=[1, 99, True], autoscale=None):
 
@@ -307,6 +311,11 @@ def colorize_channel(channel, color):
         colored_image[:, :, 2] = channel  # Blue
 
     return colored_image
+
+##Section 2:
+##
+##
+##
 from google.colab import drive
 drive.mount('/content/drive')
 base_directory = '/content/drive/MyDrive/Muscle_data'
@@ -358,6 +367,11 @@ def read_and_store_images(sub_folder, image_list):
 #Change name in parenthesis to the name of the genotype folder stored in google drive
 #Spelling and capitalizations matter!
 a_animal = read_and_store_images(folder_name, genotype)
+
+##Section 3:
+##
+##
+##
 from scipy.ndimage import binary_opening, binary_fill_holes, binary_closing
 
 #set dystrophin to 1 if the image contain a dytrophin channel
@@ -467,6 +481,10 @@ for k, image in enumerate(genotype):
 area.pop()
 area_pixel.pop()
 length.pop()
+
+##Section 4(Manual Cell Border Mask Correction):
+##
+##
 IS_COLAB = True
 
 if IS_COLAB:
