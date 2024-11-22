@@ -10,10 +10,10 @@ from fastapi import UploadFile
 import shutil
 
 from stack_czi import process_stack_czi_files
-from spg import process_spg_files
-from gel import process_gel_files
-from muscle import process_muscle_files
-from cell_border import process_cell_border_files
+# from spg import process_spg_files
+# from gel import process_gel_files
+# from muscle import process_muscle_files
+# from cell_border import process_cell_border_files
 
 logger = logging.getLogger(__name__)
 
@@ -76,30 +76,35 @@ class FileProcessor:
 
             # Process based on tool_id and provide organized files
             if tool_id == "gel":
-                # Example for gel analysis which needs data file and parameters
-                data_files = organized_files.get("Data File", [])
-                param_files = organized_files.get("Parameters", [])
+                pass
+                # # Example for gel analysis which needs data file and parameters
+                # data_files = organized_files.get("Data File", [])
+                # param_files = organized_files.get("Parameters", [])
                 
-                result_files = await process_gel_files(
-                    data_files=data_files,
-                    param_files=param_files,
-                    results_dir=results_dir,
-                    job_status=self.jobs[job_id]
-                )
+                # result_files = await process_gel_files(
+                #     data_files=data_files,
+                #     param_files=param_files,
+                #     results_dir=results_dir,
+                #     job_status=self.jobs[job_id]
+                # )
             elif tool_id == "muscle":
-                # Example for muscle analysis
-                config_files = organized_files.get("Microscope Config", [])
-                cal_files = organized_files.get("Calibration Data", [])
+                pass
+                # # Example for muscle analysis
+                # config_files = organized_files.get("Microscope Config", [])
+                # cal_files = organized_files.get("Calibration Data", [])
                 
-                result_files = await process_muscle_files(
-                    config_files=config_files,
-                    cal_files=cal_files,
-                    results_dir=results_dir,
-                    job_status=self.jobs[job_id]
-                )
-            else:
-                # For simpler tools that only need one type of file
-                result_files = await self._process_simple_tool(
+                # result_files = await process_muscle_files(
+                #     config_files=config_files,
+                #     cal_files=cal_files,
+                #     results_dir=results_dir,
+                #     job_status=self.jobs[job_id]
+                # )
+            elif tool_id == "spg":
+                pass
+            elif tool_id == "cell_border":
+                pass
+            elif tool_id == "stack_czi":
+                result_files = await process_stack_czi_files(
                     tool_id, 
                     organized_files,
                     results_dir
