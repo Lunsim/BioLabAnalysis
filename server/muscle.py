@@ -2,6 +2,10 @@ from fastapi import FastAPI
 
 app = FastAPI()
 
+##Section 1:
+##
+##
+##
 @app.post("/muscle", response_model=xxx)
 def im_adjust(I, thres=[1, 99, True], autoscale=None):
 
