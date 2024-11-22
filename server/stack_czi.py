@@ -1,29 +1,33 @@
-import pandas as pd
-import xlsxwriter
-from openpyxl import Workbook
-from openpyxl import load_workbook
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-from aicsimageio import AICSImage
-from bresenham import bresenham
 import re
+import math
+import random
+import statistics as stats
+from os.path import exists
 import shutil
 
-from scipy.spatial import Voronoi, voronoi_plot_2d
-import geopandas as gpd
+import numpy as np
 import pandas as pd
-from shapely.geometry import Polygon, LineString
-from scipy.ndimage.morphology import binary_erosion
-from sklearn.neighbors import KDTree
-from os.path import exists
+import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.path as mpath
-import random
-import math
-import statistics as stats
+
+import cv2
+from aicsimageio import AICSImage
+import tifffile
+from bresenham import bresenham
+from scipy.spatial import Voronoi, voronoi_plot_2d
+from scipy.ndimage.morphology import binary_erosion
+
+import geopandas as gpd
+from shapely.geometry import Polygon, LineString
+from sklearn.neighbors import KDTree
+
+import xlsxwriter
+from openpyxl import Workbook, load_workbook
 
 micron_to_pixel_scale = 3.0769
+
 
 def im_adjust(I, thres=[1, 99, True], autoscale=None):
     # compute percentile: remove too big or too small values
