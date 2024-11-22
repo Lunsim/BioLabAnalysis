@@ -64,29 +64,47 @@ class FileProcessor:
             "message": "Job not found"
         })
 
-    async def process_files(self, job_id: str, tool_id: str, file_paths: List[Path]) -> None:
+    async def process_files(self, job_id: str, tool_id: str, organized_files: Dict[str, List[Dict]]) -> None:
         try:
-            # Get result directory
             results_dir = self._get_job_results_dir(job_id)
             
-            # Update status
             self.jobs[job_id].update({
                 "status": "processing",
                 "progress": 0,
                 "message": "Starting processing..."
             })
 
-            # Process based on tool_id
-            if tool_id == "stack_czi":
-                result_files = await process_czi_files(file_paths, results_dir, self.jobs[job_id])
-            elif tool_id == "spg":
-                result_files = await process_spg_files(file_paths, results_dir, self.jobs[job_id])
-            elif tool_id == "gel":
-                result_files = await process_gel_files(file_paths, results_dir, self.jobs[job_id])
+            # Process based on tool_id and provide organized files
+            if tool_id == "gel":
+                # Example for gel analysis which needs data file and parameters
+                data_files = organized_files.get("Data File", [])
+                param_files = organized_files.get("Parameters", [])
+                
+                result_files = await process_gel_files(
+                    data_files=data_files,
+                    param_files=param_files,
+                    results_dir=results_dir,
+                    job_status=self.jobs[job_id]
+                )
+            elif tool_id == "muscle":
+                # Example for muscle analysis
+                config_files = organized_files.get("Microscope Config", [])
+                cal_files = organized_files.get("Calibration Data", [])
+                
+                result_files = await process_muscle_files(
+                    config_files=config_files,
+                    cal_files=cal_files,
+                    results_dir=results_dir,
+                    job_status=self.jobs[job_id]
+                )
             else:
-                raise ValueError(f"Unknown tool_id: {tool_id}")
+                # For simpler tools that only need one type of file
+                result_files = await self._process_simple_tool(
+                    tool_id, 
+                    organized_files,
+                    results_dir
+                )
 
-            # Update job status to completed
             self.jobs[job_id].update({
                 "status": "completed",
                 "progress": 100,
@@ -100,9 +118,6 @@ class FileProcessor:
                 "status": "failed",
                 "message": f"Processing failed: {str(e)}"
             })
-
         finally:
             # Clean up upload directory
-            upload_dir = self._get_job_upload_dir(job_id)
-            if upload_dir.exists():
-                shutil.rmtree(upload_dir)
+            self._cleanup_upload_dir(job_id)
