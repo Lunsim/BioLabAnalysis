@@ -5,6 +5,9 @@ from FileProcess import FileProcessor
 
 app = FastAPI()
 file_processor = FileProcessor()
+jobs = {}
+
+toolConfig = json.loads("toolConfig.json")
 
 @app.post("/api/process/{tool_id}")
 async def upload_files(
