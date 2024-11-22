@@ -43,7 +43,7 @@ def im_adjust(I, thres=[1, 99, True], autoscale=None):
             I = (I * 255).astype(np.uint8)
     return I
 
-def stack_czi(image_path, storage_path):
+def process_stack_czi_files(image_path, storage_path):
     filename = os.listdir(image_path)
     filenames_folder = []
     sorted_filenames = sorted(filename, key=lambda x: (int(x.split()[1].split('.')[0]), int(x.split()[1].split('.')[1])))
