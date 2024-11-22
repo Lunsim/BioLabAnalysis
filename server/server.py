@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException
-from typing import List, Dict
+from typing import List, Dict, Optional
 import json
 from FileProcess import FileProcessor
 
@@ -8,10 +8,9 @@ file_processor = FileProcessor()
 
 @app.post("/api/process/{tool_id}")
 async def upload_files(
-    tool_id: str,
     files: List[UploadFile] = File(...),
-    toolConfig: str = Form(...),
-    background_tasks: BackgroundTasks
+    tool_id: str = None,
+    background_tasks: Optional[BackgroundTasks] = None
 ):
     try:
         # Create new job
