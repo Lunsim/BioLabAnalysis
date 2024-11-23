@@ -38,15 +38,20 @@ async def upload_files(
     tool_id: str,
     files: List[UploadFile] = File(...),
     background_tasks: BackgroundTasks = None
-):    
+):   
+    print("frontend fetch recieved")
     try:
         # Create new job
         job_id = file_processor.create_job()
+        
+        print(f"created job: {job_id}")
             
         tool_config = next((tool for tool in config["tools"] if tool["id"] == tool_id), None)
         if not tool_config:
             raise HTTPException(status_code=400, detail="Invalid tool ID")
-            
+        
+        print(f"saving for {tool_id}")
+        
         # Validate files against requirements
         requirements = tool_config["requirements"]
         
