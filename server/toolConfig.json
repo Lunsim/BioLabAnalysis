@@ -1,0 +1,118 @@
+{
+  "tools": [
+    {
+      "id": "stack_czi",
+      "title": "Stack Multi-plane CZI",
+      "description": "Stacking czi images with multiple Z-planes",
+      "icon": "layer-group",
+      "path": "stack_czi",
+      "processor": "StackCZIProcessor",
+      "requirements": [
+        {
+          "name": "SPG Image CZI",
+          "type": ".czi",
+          "multiple": true,
+          "folder": true,
+          "required": true,
+          "validation": {
+            "minFiles": 1,
+            "maxFiles": 10,
+            "maxSize": 102400000
+          }
+        }
+      ],
+      "outputTypes": ["stacked_image", "metadata"]
+    },
+    {
+      "id": "spg",
+      "title": "SPG Analysis",
+      "description": "Perform Voronoi Analysis on SPG cells",
+      "icon": "microscope",
+      "path": "spg",
+      "processor": "SPGAnalyzer",
+      "requirements": [
+        {
+          "name": "SPG Template CZI",
+          "type": ".czi",
+          "multiple": true,
+          "folder": true,
+          "required": true,
+          "validation": {
+            "minFiles": 1,
+            "maxFiles": 5,
+            "maxSize": 51200000
+          }
+        }
+      ],
+      "outputTypes": ["voronoi", "nuclei_to_edge", "analysis_data"]
+    },
+    {
+      "id": "gel",
+      "title": "Gel Analysis",
+      "description": "Analyze gel images to extract and quantify band data",
+      "icon": "chart-bar",
+      "path": "gel",
+      "processor": "GelAnalyzer",
+      "requirements": [
+        {
+          "name": "Data File",
+          "type": ".dat",
+          "multiple": false,
+          "folder": true,
+          "required": true,
+          "validation": {
+            "maxSize": 100000000
+          }
+        },
+        {
+          "name": "Parameters",
+          "type": ".params",
+          "multiple": false,
+          "folder": false,
+          "required": true,
+          "validation": {
+            "maxSize": 1000000
+          }
+        }
+      ],
+      "outputTypes": ["gel_analysis", "band_data"]
+    },
+    {
+      "id": "muscle",
+      "title": "Muscle Analysis",
+      "description": "Streamlined analysis of muscle cells",
+      "icon": "dna",
+      "path": "muscle",
+      "processor": "MuscleAnalyzer",
+      "requirements": [
+        {
+          "name": "Microscope Config",
+          "type": ".json",
+          "multiple": false,
+          "required": true,
+          "validation": {
+            "maxSize": 1000000
+          }
+        },
+        {
+          "name": "Calibration Data",
+          "type": ".cal",
+          "multiple": true,
+          "required": true,
+          "validation": {
+            "minFiles": 1,
+            "maxFiles": 3,
+            "maxSize": 10000000
+          }
+        }
+      ],
+      "outputTypes": ["muscle_metrics", "contraction_data"]
+    }
+  ],
+  "processingSettings": {
+    "maxConcurrentJobs": 4,
+    "timeoutSeconds": 3600,
+    "tempDirectory": "/tmp/labtoolx",
+    "outputDirectory": "/data/results"
+  }
+}
