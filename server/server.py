@@ -20,6 +20,8 @@ async def upload_files(
     background_tasks: BackgroundTasks = None
 ):
     try:
+        print("uploading")
+        
         # Create new job
         job_id = file_processor.create_job()
         
