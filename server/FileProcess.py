@@ -37,7 +37,17 @@ class FileProcessor:
         job_results_dir = self.RESULTS_DIR / job_id
         job_results_dir.mkdir(exist_ok=True)
         return job_results_dir
-
+    
+    def _cleanup_upload_dir(self, job_id: str):
+        try:
+            upload_dir = self._get_job_upload_dir(job_id)
+            if upload_dir.exists():
+                shutil.rmtree(upload_dir)
+                logger.info(f"Cleaned up upload directory for job {job_id}")
+        except Exception as e:
+            logger.error(f"Error cleaning up upload directory for job {job_id}: {str(e)}")
+            pass
+        
     async def save_uploaded_file(self, file: UploadFile, job_id: str) -> Path:
         upload_dir = self._get_job_upload_dir(job_id)
         file_path = upload_dir / file.filename
