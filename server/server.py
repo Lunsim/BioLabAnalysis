@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 import json
 from FileProcess import FileProcessor
 from pathlib import Path
+from pydantic import BaseModel
 
 app = FastAPI()
 file_processor = FileProcessor()
@@ -13,55 +14,77 @@ RESULTS_DIR = Path("results")
 with open("toolConfig.json") as f:
     toolConfig = json.load(f)
     
+class FileMetadata(BaseModel):
+    requirementName: str
+    multiple: bool
+    index: int = None
+    
+# server.py
+from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException
+from typing import List
+import json
+from FileProcess import FileProcessor
+from pathlib import Path
+
+app = FastAPI()
+file_processor = FileProcessor()
+
+# Get tool config
+with open("toolConfig.json") as f:
+    config = json.load(f)
+
 @app.post("/api/process/{tool_id}")
 async def upload_files(
+    tool_id: str,
     files: List[UploadFile] = File(...),
-    tool_id: str = None,
     background_tasks: BackgroundTasks = None
-):
+):    
     try:
-        print("uploading")
-        
         # Create new job
         job_id = file_processor.create_job()
+            
+        tool_config = next((tool for tool in config["tools"] if tool["id"] == tool_id), None)
+        if not tool_config:
+            raise HTTPException(status_code=400, detail="Invalid tool ID")
+            
+        # Validate files against requirements
+        requirements = tool_config["requirements"]
         
-        # Parse tool configuration
-        tool_config = json.loads(toolConfig)
-        requirements = {req["name"]: req for req in tool_config["requirements"]}
-        
-        # Organize files by requirement
-        organized_files: Dict[str, List[Dict]] = {}
-        
-        # Process each uploaded file
+        # Save files and organize by requirement type
+        organized_files = {}
         for file in files:
-            metadata_key = f"metadata_{file.filename}"
-            metadata = json.loads(toolConfig)  # Using toolConfig as it contains file metadata
-            requirement_name = metadata["requirementName"]
+            # Find matching requirement based on file extension
+            file_ext = Path(file.filename).suffix
+            requirement = next((req for req in requirements if req["type"] == file_ext), None)
             
-            if requirement_name not in organized_files:
-                organized_files[requirement_name] = []
-            
+            if not requirement:
+                continue  # Skip files that don't match any requirement
+                
+            req_name = requirement["name"]
+            if req_name not in organized_files:
+                organized_files[req_name] = []
+                
             # Save file
             file_path = await file_processor.save_uploaded_file(file, job_id)
-            
-            organized_files[requirement_name].append({
+            organized_files[req_name].append({
                 'path': file_path,
-                'metadata': metadata,
                 'original_name': file.filename
             })
-
+            
         # Validate requirements
-        for req_name, req_info in requirements.items():
-            if req_name not in organized_files:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Missing required files for: {req_name}"
-                )
-            if not req_info["multiple"] and len(organized_files[req_name]) > 1:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Multiple files provided for single-file requirement: {req_name}"
-                )
+        for req in requirements:
+            if req["required"]:
+                if req["name"] not in organized_files:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Missing required files for: {req['name']}"
+                    )
+                    
+                if not req["multiple"] and len(organized_files[req["name"]]) > 1:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Multiple files provided for single-file requirement: {req['name']}"
+                    )
 
         # Start processing in background
         background_tasks.add_task(
