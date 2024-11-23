@@ -32,9 +32,6 @@ pathlib
 typing-extensions
 uuid
 
-# Logging
-logging
-
 # Async Support
 asyncio
 
