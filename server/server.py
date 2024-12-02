@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Optional
 import json
 from FileProcess import FileProcessor
@@ -8,6 +9,14 @@ from pydantic import BaseModel
 app = FastAPI()
 file_processor = FileProcessor()
 jobs = {}
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust this to restrict allowed origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 RESULTS_DIR = Path("results")
 
@@ -19,15 +28,8 @@ class FileMetadata(BaseModel):
     multiple: bool
     index: int = None
     
-# server.py
-from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException
-from typing import List
-import json
-from FileProcess import FileProcessor
-from pathlib import Path
-
-app = FastAPI()
-file_processor = FileProcessor()
+class FileResponse(BaseModel):
+    file_path: str
 
 # Get tool config
 with open("toolConfig.json") as f:
@@ -203,6 +205,7 @@ async def serve_result_file(tool_id: str, job_id: str, category: str, filename: 
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path)
+
 
 def main():
     return True
