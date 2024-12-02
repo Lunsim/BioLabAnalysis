@@ -12,6 +12,9 @@ scikit-learn
 geopandas
 shapely
 statistics
+aicspylibczi
+fsspec
+bioformats_jar
 
 # Image Processing
 opencv-python
