@@ -203,3 +203,6 @@ async def serve_result_file(tool_id: str, job_id: str, category: str, filename: 
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path)
+
+def main():
+    return True
