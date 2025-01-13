@@ -1,193 +1,137 @@
-from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict, Optional
-import json
-from FileProcess import FileProcessor
+# routes.py
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import JSONResponse
+from typing import List, Dict
+import os
+import shutil
 from pathlib import Path
-from pydantic import BaseModel
 
 app = FastAPI()
-file_processor = FileProcessor()
-jobs = {}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Base directories
+UPLOAD_DIR = Path("data/uploads")
+RESULTS_DIR = Path("data/results")
 
-RESULTS_DIR = Path("results")
-UPLOAD_DIR = Path("uploads")
+# Ensure directories exist
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Load tool configuration
-with open("toolConfig.json") as f:
-    config = json.load(f)
-
-class FileMetadata(BaseModel):
-    requirementName: str
-    multiple: bool
-    index: int = None
-
-class UploadResponse(BaseModel):
-    upload_id: str
-    file_paths: Dict[str, List[str]]
-    message: str
-
-class ProcessResponse(BaseModel):
-    job_id: str
-    message: str
-
-class ProcessRequest(BaseModel):
-    upload_id: str
-    tool_id: str
-
-# 1. File Upload Endpoint
 @app.post("/api/upload")
 async def upload_files(
-    files: List[UploadFile] = File(...),
-) -> UploadResponse:
+    files: List[UploadFile],
+    job_id: str = Form(...),
+    tool_id: str = Form(...),
+    requirement_names: List[str] = Form(...)
+):
     try:
-        # Generate upload ID
-        upload_id = file_processor.create_upload_id()
-        upload_dir = UPLOAD_DIR / upload_id
-        upload_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save files and track their paths
+        # Create job directory for uploads
+        upload_path = UPLOAD_DIR / job_id
+        upload_path.mkdir(parents=True, exist_ok=True)
+        
+        # Create directories for each requirement
         file_paths = {}
-        for file in files:
-            file_path = upload_dir / file.filename
-            with open(file_path, "wb") as buffer:
-                content = await file.read()
-                buffer.write(content)
-            
-            # Organize by file extension
-            ext = file_path.suffix
-            if ext not in file_paths:
-                file_paths[ext] = []
-            file_paths[ext].append(str(file_path))
+        for req_name in requirement_names:
+            req_dir = upload_path / req_name
+            req_dir.mkdir(exist_ok=True)
+            file_paths[req_name] = []
 
-        return UploadResponse(
-            upload_id=upload_id,
-            file_paths=file_paths,
-            message="Files uploaded successfully"
-        )
+        # Save uploaded files to appropriate directories
+        for file, req_name in zip(files, requirement_names):
+            file_path = upload_path / req_name / file.filename
+            with file_path.open("wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            file_paths[req_name].append(str(file_path))
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# 2. Process Files Endpoint
-@app.post("/api/process")
-async def process_files(
-    request: ProcessRequest,
-    background_tasks: BackgroundTasks
-) -> ProcessResponse:
-    try:
-        tool_id = request.tool_id
-        upload_id = request.upload_id
-
-        # Validate tool exists
-        tool_config = next((tool for tool in config["tools"] if tool["id"] == tool_id), None)
-        if not tool_config:
-            raise HTTPException(status_code=400, detail="Invalid tool ID")
-
-        # Create job
-        job_id = file_processor.create_job()
-        
-        # Organize uploaded files by requirement
-        upload_dir = UPLOAD_DIR / upload_id
-        if not upload_dir.exists():
-            raise HTTPException(status_code=404, detail="Upload not found")
-
-        # Match files to requirements
-        organized_files = {}
-        requirements = tool_config["requirements"]
-        
-        for requirement in requirements:
-            req_name = requirement["name"]
-            req_type = requirement["type"]
-            
-            matching_files = list(upload_dir.glob(f"*{req_type}"))
-            
-            if requirement["required"] and not matching_files:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Missing required files for: {req_name}"
-                )
-                
-            if not requirement["multiple"] and len(matching_files) > 1:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Multiple files provided for single-file requirement: {req_name}"
-                )
-                
-            organized_files[req_name] = [
-                {
-                    'path': str(f),
-                    'original_name': f.name
-                }
-                for f in matching_files
-            ]
-
-        # Start processing in background
-        background_tasks.add_task(
-            file_processor.process_files,
-            job_id,
-            tool_id,
-            organized_files
-        )
-
-        return ProcessResponse(
-            job_id=job_id,
-            message="Processing started"
-        )
+        return JSONResponse({
+            "status": "success",
+            "job_id": job_id,
+            "upload_path": str(upload_path),
+            "file_paths": file_paths
+        })
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
 
-# 3. Get Results Endpoint
-@app.get("/api/results/{tool_id}/{job_id}")
-async def get_results(tool_id: str, job_id: str):
+@app.post("/api/process/{job_id}")
+async def process_files(job_id: str, tool_id: str):
     try:
-        # Check job status
-        job_status = file_processor.get_job_status(job_id)
-        if not job_status:
-            raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
-            
-        if job_status["status"] != "completed":
-            raise HTTPException(
-                status_code=400,
-                detail=f"Job is not complete. Current status: {job_status['status']}"
+        # Get upload path
+        upload_path = UPLOAD_DIR / job_id
+        if not upload_path.exists():
+            return JSONResponse({
+                "status": "error",
+                "message": "Upload directory not found"
+            }, status_code=404)
+
+        # Create results directory
+        result_path = RESULTS_DIR / job_id
+        result_path.mkdir(parents=True, exist_ok=True)
+
+        # Process files based on tool_id
+        # This will be replaced with actual tool-specific processing
+        tool_processor = get_tool_processor(tool_id)
+        if tool_processor:
+            result = await tool_processor(
+                upload_path=str(upload_path),
+                result_path=str(result_path),
+                job_id=job_id
             )
+            
+            return JSONResponse({
+                "status": "completed",
+                "job_id": job_id,
+                "result_path": str(result_path),
+                "results": result
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": f"No processor found for tool {tool_id}"
+            }, status_code=400)
 
-        # Get results path
-        results_dir = RESULTS_DIR / tool_id / job_id
-        if not results_dir.exists():
-            raise HTTPException(status_code=404, detail=f"Results not found")
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
 
-        # Return tool-specific results
-        tool_results = file_processor.get_tool_results(tool_id, job_id, results_dir)
-        
-        return {
+@app.get("/api/results/{job_id}")
+async def get_results(job_id: str):
+    try:
+        result_path = RESULTS_DIR / job_id
+        if not result_path.exists():
+            return JSONResponse({
+                "status": "error",
+                "message": "Results not found"
+            }, status_code=404)
+
+        # Here you would implement logic to read and return the results
+        # This is a placeholder that would be replaced with actual result reading
+        results = {
             "status": "completed",
-            "results": tool_results
+            "job_id": job_id,
+            "result_path": str(result_path),
+            "files": list(result_path.glob("**/*")),  # List all files in result directory
         }
 
-    except HTTPException:
-        raise
+        return JSONResponse(results)
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
 
-# Status check endpoint remains the same
-@app.get("/api/status/{job_id}")
-async def get_job_status(job_id: str):
-    return file_processor.get_job_status(job_id)
-
-# Serve result files
-@app.get("/results/{tool_id}/{job_id}/{category}/{filename}")
-async def serve_result_file(tool_id: str, job_id: str, category: str, filename: str):
-    file_path = RESULTS_DIR / tool_id / job_id / category / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+# Tool processor mapping (to be implemented)
+def get_tool_processor(tool_id: str):
+    # This would be replaced with actual tool processors
+    tool_processors = {
+        "stack_czi": process_stack_czi,
+        "spg": process_spg,
+        "gel": process_gel,
+        "muscle": process_muscle
+    }
+    return tool_processors.get(tool_id)
